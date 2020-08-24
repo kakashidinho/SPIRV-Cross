@@ -13,41 +13,15 @@
 # limitations under the License.
 #
 
-config("spirv_cross_public") {
+config("spirv_cross_common_public") {
   include_dirs = [ ".." ]
+}
 
+config("spirv_cross_no_except_public") {
   defines = [ "SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS" ]
 }
 
-source_set("spirv_cross_sources") {
-  public_configs = [ ":spirv_cross_public" ]
-
-  sources = [
-    "../GLSL.std.450.h",
-    "../spirv.hpp",
-    "../spirv_cfg.cpp",
-    "../spirv_cfg.hpp",
-    "../spirv_common.hpp",
-    "../spirv_cross.cpp",
-    "../spirv_cross.hpp",
-    "../spirv_cross_containers.hpp",
-    "../spirv_cross_error_handling.hpp",
-    "../spirv_cross_parsed_ir.cpp",
-    "../spirv_cross_parsed_ir.hpp",
-    "../spirv_cross_util.cpp",
-    "../spirv_cross_util.hpp",
-    "../spirv_glsl.cpp",
-    "../spirv_glsl.hpp",
-    "../spirv_msl.cpp",
-    "../spirv_msl.hpp",
-    "../spirv_parser.cpp",
-    "../spirv_parser.hpp",
-    "../spirv_reflect.cpp",
-    "../spirv_reflect.hpp",
-  ]
-
-  cflags = [ "-fno-exceptions" ]
-
+config("spirv_cross_common_priv") {
   if (is_clang) {
     cflags_cc = [
       "-Wno-extra-semi",
@@ -60,4 +34,55 @@ source_set("spirv_cross_sources") {
       "-Wno-unused-variable",
     ]
   }
+}
+
+
+config("spirv_cross_with_except_priv") {
+  cflags_cc = [ "-fexceptions" ]
+}
+
+spirv_cross_src_files = [
+  "../GLSL.std.450.h",
+  "../spirv.hpp",
+  "../spirv_cfg.cpp",
+  "../spirv_cfg.hpp",
+  "../spirv_common.hpp",
+  "../spirv_cross.cpp",
+  "../spirv_cross.hpp",
+  "../spirv_cross_containers.hpp",
+  "../spirv_cross_error_handling.hpp",
+  "../spirv_cross_parsed_ir.cpp",
+  "../spirv_cross_parsed_ir.hpp",
+  "../spirv_cross_util.cpp",
+  "../spirv_cross_util.hpp",
+  "../spirv_glsl.cpp",
+  "../spirv_glsl.hpp",
+  "../spirv_msl.cpp",
+  "../spirv_msl.hpp",
+  "../spirv_parser.cpp",
+  "../spirv_parser.hpp",
+  "../spirv_reflect.cpp",
+  "../spirv_reflect.hpp",
+]
+
+source_set("spirv_cross_with_except_sources") {
+  public_configs = [ ":spirv_cross_common_public" ]
+  configs += [
+    ":spirv_cross_common_priv",
+    ":spirv_cross_with_except_priv",
+  ]
+
+  sources = spirv_cross_src_files
+}
+
+source_set("spirv_cross_sources") {
+  public_configs = [
+    ":spirv_cross_common_public",
+    ":spirv_cross_no_except_public"
+  ]
+  configs += [ ":spirv_cross_common_priv" ]
+
+  cflags = [ "-fno-exceptions" ]
+
+  sources = spirv_cross_src_files
 }
