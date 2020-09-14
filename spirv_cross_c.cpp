@@ -50,13 +50,27 @@
 #pragma warning(disable : 4996)
 #endif
 
-#ifndef SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
+#ifdef SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP
+#define SPVC_BEGIN_SAFE_SCOPE        						\
+	{                                						\
+		CompileErrorContext err_ctx; 						\
+		AutoEndScopedCompileErrorContext auto_end_err_ctx;	\
+		if (trap_error(&err_ctx))
+#elif !defined(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
 #define SPVC_BEGIN_SAFE_SCOPE try
 #else
 #define SPVC_BEGIN_SAFE_SCOPE
 #endif
 
-#ifndef SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
+#ifdef SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP
+#define SPVC_END_SAFE_SCOPE(context, error)         \
+	else                                            \
+	{                                               \
+		(context)->report_error(err_ctx.error_msg); \
+		return (error);                             \
+	}                                               \
+	}
+#elif !defined(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
 #define SPVC_END_SAFE_SCOPE(context, error) \
 	catch (const std::exception &e)         \
 	{                                       \
@@ -384,8 +398,7 @@ spvc_result spvc_compiler_create_compiler_options(spvc_compiler compiler, spvc_c
 	return SPVC_SUCCESS;
 }
 
-spvc_result spvc_compiler_options_set_bool(spvc_compiler_options options, spvc_compiler_option option,
-                                           spvc_bool value)
+spvc_result spvc_compiler_options_set_bool(spvc_compiler_options options, spvc_compiler_option option, spvc_bool value)
 {
 	return spvc_compiler_options_set_uint(options, option, value ? 1 : 0);
 }
@@ -705,7 +718,8 @@ spvc_result spvc_compiler_add_header_line(spvc_compiler compiler, const char *li
 #if SPIRV_CROSS_C_API_GLSL
 	if (compiler->backend == SPVC_BACKEND_NONE)
 	{
-		compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+		compiler->context->report_error(
+		    "Cross-compilation related option used on NONE backend which only supports reflection.");
 		return SPVC_ERROR_INVALID_ARGUMENT;
 	}
 
@@ -713,7 +727,8 @@ spvc_result spvc_compiler_add_header_line(spvc_compiler compiler, const char *li
 	return SPVC_SUCCESS;
 #else
 	(void)line;
-	compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+	compiler->context->report_error(
+	    "Cross-compilation related option used on NONE backend which only supports reflection.");
 	return SPVC_ERROR_INVALID_ARGUMENT;
 #endif
 }
@@ -723,7 +738,8 @@ spvc_result spvc_compiler_require_extension(spvc_compiler compiler, const char *
 #if SPIRV_CROSS_C_API_GLSL
 	if (compiler->backend == SPVC_BACKEND_NONE)
 	{
-		compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+		compiler->context->report_error(
+		    "Cross-compilation related option used on NONE backend which only supports reflection.");
 		return SPVC_ERROR_INVALID_ARGUMENT;
 	}
 
@@ -731,7 +747,8 @@ spvc_result spvc_compiler_require_extension(spvc_compiler compiler, const char *
 	return SPVC_SUCCESS;
 #else
 	(void)line;
-	compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+	compiler->context->report_error(
+	    "Cross-compilation related option used on NONE backend which only supports reflection.");
 	return SPVC_ERROR_INVALID_ARGUMENT;
 #endif
 }
@@ -741,7 +758,8 @@ spvc_result spvc_compiler_flatten_buffer_block(spvc_compiler compiler, spvc_vari
 #if SPIRV_CROSS_C_API_GLSL
 	if (compiler->backend == SPVC_BACKEND_NONE)
 	{
-		compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+		compiler->context->report_error(
+		    "Cross-compilation related option used on NONE backend which only supports reflection.");
 		return SPVC_ERROR_INVALID_ARGUMENT;
 	}
 
@@ -749,7 +767,8 @@ spvc_result spvc_compiler_flatten_buffer_block(spvc_compiler compiler, spvc_vari
 	return SPVC_SUCCESS;
 #else
 	(void)id;
-	compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+	compiler->context->report_error(
+	    "Cross-compilation related option used on NONE backend which only supports reflection.");
 	return SPVC_ERROR_INVALID_ARGUMENT;
 #endif
 }
@@ -759,21 +778,23 @@ spvc_bool spvc_compiler_variable_is_depth_or_compare(spvc_compiler compiler, spv
 #if SPIRV_CROSS_C_API_GLSL
 	if (compiler->backend == SPVC_BACKEND_NONE)
 	{
-		compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+		compiler->context->report_error(
+		    "Cross-compilation related option used on NONE backend which only supports reflection.");
 		return SPVC_ERROR_INVALID_ARGUMENT;
 	}
 
-	return static_cast<CompilerGLSL *>(compiler->compiler.get())->variable_is_depth_or_compare(id) ? SPVC_TRUE : SPVC_FALSE;
+	return static_cast<CompilerGLSL *>(compiler->compiler.get())->variable_is_depth_or_compare(id) ? SPVC_TRUE :
+	                                                                                                 SPVC_FALSE;
 #else
 	(void)id;
-	compiler->context->report_error("Cross-compilation related option used on NONE backend which only supports reflection.");
+	compiler->context->report_error(
+	    "Cross-compilation related option used on NONE backend which only supports reflection.");
 	return SPVC_FALSE;
 #endif
 }
 
 spvc_result spvc_compiler_hlsl_set_root_constants_layout(spvc_compiler compiler,
-                                                         const spvc_hlsl_root_constants *constant_info,
-                                                         size_t count)
+                                                         const spvc_hlsl_root_constants *constant_info, size_t count)
 {
 #if SPIRV_CROSS_C_API_HLSL
 	if (compiler->backend != SPVC_BACKEND_HLSL)
@@ -806,8 +827,7 @@ spvc_result spvc_compiler_hlsl_set_root_constants_layout(spvc_compiler compiler,
 }
 
 spvc_result spvc_compiler_hlsl_add_vertex_attribute_remap(spvc_compiler compiler,
-                                                          const spvc_hlsl_vertex_attribute_remap *remap,
-                                                          size_t count)
+                                                          const spvc_hlsl_vertex_attribute_remap *remap, size_t count)
 {
 #if SPIRV_CROSS_C_API_HLSL
 	if (compiler->backend != SPVC_BACKEND_HLSL)
@@ -851,8 +871,7 @@ spvc_variable_id spvc_compiler_hlsl_remap_num_workgroups_builtin(spvc_compiler c
 #endif
 }
 
-spvc_result spvc_compiler_hlsl_set_resource_binding_flags(spvc_compiler compiler,
-                                                          spvc_hlsl_binding_flags flags)
+spvc_result spvc_compiler_hlsl_set_resource_binding_flags(spvc_compiler compiler, spvc_hlsl_binding_flags flags)
 {
 #if SPIRV_CROSS_C_API_HLSL
 	if (compiler->backend != SPVC_BACKEND_HLSL)
@@ -871,8 +890,7 @@ spvc_result spvc_compiler_hlsl_set_resource_binding_flags(spvc_compiler compiler
 #endif
 }
 
-spvc_result spvc_compiler_hlsl_add_resource_binding(spvc_compiler compiler,
-                                                    const spvc_hlsl_resource_binding *binding)
+spvc_result spvc_compiler_hlsl_add_resource_binding(spvc_compiler compiler, const spvc_hlsl_resource_binding *binding)
 {
 #if SPIRV_CROSS_C_API_HLSL
 	if (compiler->backend != SPVC_BACKEND_HLSL)
@@ -915,7 +933,7 @@ spvc_bool spvc_compiler_hlsl_is_resource_used(spvc_compiler compiler, SpvExecuti
 
 	auto &hlsl = *static_cast<CompilerHLSL *>(compiler->compiler.get());
 	return hlsl.is_hlsl_resource_binding_used(static_cast<spv::ExecutionModel>(model), set, binding) ? SPVC_TRUE :
-	       SPVC_FALSE;
+	                                                                                                   SPVC_FALSE;
 #else
 	(void)model;
 	(void)set;
@@ -1079,8 +1097,7 @@ spvc_result spvc_compiler_msl_add_shader_input(spvc_compiler compiler, const spv
 #endif
 }
 
-spvc_result spvc_compiler_msl_add_resource_binding(spvc_compiler compiler,
-                                                   const spvc_msl_resource_binding *binding)
+spvc_result spvc_compiler_msl_add_resource_binding(spvc_compiler compiler, const spvc_msl_resource_binding *binding)
 {
 #if SPIRV_CROSS_C_API_MSL
 	if (compiler->backend != SPVC_BACKEND_MSL)
@@ -1106,7 +1123,8 @@ spvc_result spvc_compiler_msl_add_resource_binding(spvc_compiler compiler,
 #endif
 }
 
-spvc_result spvc_compiler_msl_add_dynamic_buffer(spvc_compiler compiler, unsigned desc_set, unsigned binding, unsigned index)
+spvc_result spvc_compiler_msl_add_dynamic_buffer(spvc_compiler compiler, unsigned desc_set, unsigned binding,
+                                                 unsigned index)
 {
 #if SPIRV_CROSS_C_API_MSL
 	if (compiler->backend != SPVC_BACKEND_MSL)
@@ -1166,7 +1184,8 @@ spvc_result spvc_compiler_msl_add_discrete_descriptor_set(spvc_compiler compiler
 #endif
 }
 
-spvc_result spvc_compiler_msl_set_argument_buffer_device_address_space(spvc_compiler compiler, unsigned desc_set, spvc_bool device_address)
+spvc_result spvc_compiler_msl_set_argument_buffer_device_address_space(spvc_compiler compiler, unsigned desc_set,
+                                                                       spvc_bool device_address)
 {
 #if SPIRV_CROSS_C_API_MSL
 	if (compiler->backend != SPVC_BACKEND_MSL)
@@ -1251,10 +1270,12 @@ static void spvc_convert_msl_sampler(MSLConstexprSampler &samp, const spvc_msl_c
 	samp.border_color = static_cast<MSLSamplerBorderColor>(sampler->border_color);
 }
 
-static void spvc_convert_msl_sampler_ycbcr_conversion(MSLConstexprSampler &samp, const spvc_msl_sampler_ycbcr_conversion *conv)
+static void spvc_convert_msl_sampler_ycbcr_conversion(MSLConstexprSampler &samp,
+                                                      const spvc_msl_sampler_ycbcr_conversion *conv)
 {
 	samp.ycbcr_conversion_enable = conv != nullptr;
-	if (conv == nullptr) return;
+	if (conv == nullptr)
+		return;
 	samp.planes = conv->planes;
 	samp.resolution = static_cast<MSLFormatResolution>(conv->resolution);
 	samp.chroma_filter = static_cast<MSLSamplerFilter>(conv->chroma_filter);
@@ -1291,8 +1312,8 @@ spvc_result spvc_compiler_msl_remap_constexpr_sampler(spvc_compiler compiler, sp
 #endif
 }
 
-spvc_result spvc_compiler_msl_remap_constexpr_sampler_by_binding(spvc_compiler compiler,
-                                                                 unsigned desc_set, unsigned binding,
+spvc_result spvc_compiler_msl_remap_constexpr_sampler_by_binding(spvc_compiler compiler, unsigned desc_set,
+                                                                 unsigned binding,
                                                                  const spvc_msl_constexpr_sampler *sampler)
 {
 #if SPIRV_CROSS_C_API_MSL
@@ -1342,8 +1363,8 @@ spvc_result spvc_compiler_msl_remap_constexpr_sampler_ycbcr(spvc_compiler compil
 #endif
 }
 
-spvc_result spvc_compiler_msl_remap_constexpr_sampler_by_binding_ycbcr(spvc_compiler compiler,
-                                                                       unsigned desc_set, unsigned binding,
+spvc_result spvc_compiler_msl_remap_constexpr_sampler_by_binding_ycbcr(spvc_compiler compiler, unsigned desc_set,
+                                                                       unsigned binding,
                                                                        const spvc_msl_constexpr_sampler *sampler,
                                                                        const spvc_msl_sampler_ycbcr_conversion *conv)
 {
@@ -1528,8 +1549,8 @@ spvc_result spvc_compiler_set_enabled_interface_variables(spvc_compiler compiler
 	return SPVC_SUCCESS;
 }
 
-spvc_result spvc_compiler_create_shader_resources_for_active_variables(spvc_compiler compiler, spvc_resources *resources,
-                                                                       spvc_set set)
+spvc_result spvc_compiler_create_shader_resources_for_active_variables(spvc_compiler compiler,
+                                                                       spvc_resources *resources, spvc_set set)
 {
 	SPVC_BEGIN_SAFE_SCOPE
 	{
@@ -1810,8 +1831,7 @@ void spvc_compiler_set_execution_mode(spvc_compiler compiler, SpvExecutionMode m
 }
 
 void spvc_compiler_set_execution_mode_with_arguments(spvc_compiler compiler, SpvExecutionMode mode, unsigned arg0,
-                                                     unsigned arg1,
-                                                     unsigned arg2)
+                                                     unsigned arg1, unsigned arg2)
 {
 	compiler->compiler->set_execution_mode(static_cast<spv::ExecutionMode>(mode), arg0, arg1, arg2);
 }
@@ -1854,14 +1874,11 @@ SpvExecutionModel spvc_compiler_get_execution_model(spvc_compiler compiler)
 	return static_cast<SpvExecutionModel>(compiler->compiler->get_execution_model());
 }
 
-spvc_type spvc_compiler_get_type_handle(spvc_compiler compiler, spvc_type_id id)
-{
+spvc_type spvc_compiler_get_type_handle(spvc_compiler compiler, spvc_type_id id){
 	// Should only throw if an intentionally garbage ID is passed, but the IDs are not type-safe.
-	SPVC_BEGIN_SAFE_SCOPE
-	{
-		return static_cast<spvc_type>(&compiler->compiler->get_type(id));
-	}
-	SPVC_END_SAFE_SCOPE(compiler->context, nullptr)
+	SPVC_BEGIN_SAFE_SCOPE{ return static_cast<spvc_type>(&compiler->compiler->get_type(id));
+}
+SPVC_END_SAFE_SCOPE(compiler->context, nullptr)
 }
 
 spvc_type_id spvc_type_get_base_type_id(spvc_type type)
@@ -1988,7 +2005,8 @@ spvc_result spvc_compiler_get_declared_struct_size_runtime_array(spvc_compiler c
 	return SPVC_SUCCESS;
 }
 
-spvc_result spvc_compiler_get_declared_struct_member_size(spvc_compiler compiler, spvc_type struct_type, unsigned index, size_t *size)
+spvc_result spvc_compiler_get_declared_struct_member_size(spvc_compiler compiler, spvc_type struct_type, unsigned index,
+                                                          size_t *size)
 {
 	SPVC_BEGIN_SAFE_SCOPE
 	{
@@ -1998,7 +2016,8 @@ spvc_result spvc_compiler_get_declared_struct_member_size(spvc_compiler compiler
 	return SPVC_SUCCESS;
 }
 
-spvc_result spvc_compiler_type_struct_member_offset(spvc_compiler compiler, spvc_type type, unsigned index, unsigned *offset)
+spvc_result spvc_compiler_type_struct_member_offset(spvc_compiler compiler, spvc_type type, unsigned index,
+                                                    unsigned *offset)
 {
 	SPVC_BEGIN_SAFE_SCOPE
 	{
@@ -2008,7 +2027,8 @@ spvc_result spvc_compiler_type_struct_member_offset(spvc_compiler compiler, spvc
 	return SPVC_SUCCESS;
 }
 
-spvc_result spvc_compiler_type_struct_member_array_stride(spvc_compiler compiler, spvc_type type, unsigned index, unsigned *stride)
+spvc_result spvc_compiler_type_struct_member_array_stride(spvc_compiler compiler, spvc_type type, unsigned index,
+                                                          unsigned *stride)
 {
 	SPVC_BEGIN_SAFE_SCOPE
 	{
@@ -2018,7 +2038,8 @@ spvc_result spvc_compiler_type_struct_member_array_stride(spvc_compiler compiler
 	return SPVC_SUCCESS;
 }
 
-spvc_result spvc_compiler_type_struct_member_matrix_stride(spvc_compiler compiler, spvc_type type, unsigned index, unsigned *stride)
+spvc_result spvc_compiler_type_struct_member_matrix_stride(spvc_compiler compiler, spvc_type type, unsigned index,
+                                                           unsigned *stride)
 {
 	SPVC_BEGIN_SAFE_SCOPE
 	{
@@ -2098,13 +2119,10 @@ spvc_result spvc_compiler_get_specialization_constants(spvc_compiler compiler,
 	return SPVC_SUCCESS;
 }
 
-spvc_constant spvc_compiler_get_constant_handle(spvc_compiler compiler, spvc_variable_id id)
-{
-	SPVC_BEGIN_SAFE_SCOPE
-	{
-		return static_cast<spvc_constant>(&compiler->compiler->get_constant(id));
-	}
-	SPVC_END_SAFE_SCOPE(compiler->context, nullptr)
+spvc_constant spvc_compiler_get_constant_handle(spvc_compiler compiler, spvc_variable_id id){
+	SPVC_BEGIN_SAFE_SCOPE{ return static_cast<spvc_constant>(&compiler->compiler->get_constant(id));
+}
+SPVC_END_SAFE_SCOPE(compiler->context, nullptr)
 }
 
 spvc_constant_id spvc_compiler_get_work_group_size_specialization_constants(spvc_compiler compiler,
@@ -2125,10 +2143,8 @@ spvc_constant_id spvc_compiler_get_work_group_size_specialization_constants(spvc
 	return ret;
 }
 
-spvc_result spvc_compiler_get_active_buffer_ranges(spvc_compiler compiler,
-                                                   spvc_variable_id id,
-                                                   const spvc_buffer_range **ranges,
-                                                   size_t *num_ranges)
+spvc_result spvc_compiler_get_active_buffer_ranges(spvc_compiler compiler, spvc_variable_id id,
+                                                   const spvc_buffer_range **ranges, size_t *num_ranges)
 {
 	SPVC_BEGIN_SAFE_SCOPE
 	{
@@ -2209,8 +2225,7 @@ spvc_type_id spvc_constant_get_type(spvc_constant constant)
 }
 
 spvc_bool spvc_compiler_get_binary_offset_for_decoration(spvc_compiler compiler, spvc_variable_id id,
-                                                         SpvDecoration decoration,
-                                                         unsigned *word_offset)
+                                                         SpvDecoration decoration, unsigned *word_offset)
 {
 	uint32_t off = 0;
 	bool ret = compiler->compiler->get_binary_offset_for_decoration(id, static_cast<spv::Decoration>(decoration), off);
@@ -2273,14 +2288,11 @@ spvc_result spvc_compiler_get_declared_extensions(spvc_compiler compiler, const 
 	return SPVC_SUCCESS;
 }
 
-const char *spvc_compiler_get_remapped_declared_block_name(spvc_compiler compiler, spvc_variable_id id)
-{
-	SPVC_BEGIN_SAFE_SCOPE
-	{
-		auto name = compiler->compiler->get_remapped_declared_block_name(id);
-		return compiler->context->allocate_name(name);
-	}
-	SPVC_END_SAFE_SCOPE(compiler->context, nullptr)
+const char *spvc_compiler_get_remapped_declared_block_name(spvc_compiler compiler, spvc_variable_id id){
+	SPVC_BEGIN_SAFE_SCOPE{ auto name = compiler->compiler->get_remapped_declared_block_name(id);
+return compiler->context->allocate_name(name);
+}
+SPVC_END_SAFE_SCOPE(compiler->context, nullptr)
 }
 
 spvc_result spvc_compiler_get_buffer_block_decorations(spvc_compiler compiler, spvc_variable_id id,

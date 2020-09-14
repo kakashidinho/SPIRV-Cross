@@ -15,6 +15,7 @@
  */
 
 #include "spirv_cpp.hpp"
+#include "spirv_cross_error_handling.hpp"
 #include "spirv_cross_util.hpp"
 #include "spirv_glsl.hpp"
 #include "spirv_hlsl.hpp"
@@ -39,16 +40,40 @@ using namespace spv;
 using namespace SPIRV_CROSS_NAMESPACE;
 using namespace std;
 
-#ifdef SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
-static inline void THROW(const char *str)
-{
-	fprintf(stderr, "SPIRV-Cross will abort: %s\n", str);
-	fflush(stderr);
-	abort();
-}
+#ifdef SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP
+#define SPVC_BEGIN_SAFE_SCOPE                              \
+	{                                                      \
+		CompileErrorContext err_ctx;                       \
+		AutoEndScopedCompileErrorContext auto_end_err_ctx; \
+		if (trap_error(&err_ctx))
+#elif !defined(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
+#define SPVC_BEGIN_SAFE_SCOPE try
 #else
-#define THROW(x) throw runtime_error(x)
+#define SPVC_BEGIN_SAFE_SCOPE
 #endif
+
+#ifdef SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP
+#define SPVC_END_SAFE_SCOPE(err_handling_code)           \
+	else                                                 \
+	{                                                    \
+		const char *err_msg = err_ctx.error_msg.c_str(); \
+		(void)err_msg;                                   \
+		err_handling_code;                               \
+	}                                                    \
+	}
+#elif !defined(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
+#define SPVC_END_SAFE_SCOPE(err_handling_code) \
+	catch (const std::exception &e)            \
+	{                                          \
+		const char *err_msg = e.what();        \
+		(void)err_msg;                         \
+		err_handling_code;                     \
+	}
+#else
+#define SPVC_END_SAFE_SCOPE(handling_code)
+#endif
+
+#define THROW(x) SPIRV_CROSS_THROW(x)
 
 struct CLIParser;
 struct CLICallbacks
@@ -73,9 +98,7 @@ struct CLIParser
 
 	bool parse()
 	{
-#ifndef SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
-		try
-#endif
+		SPVC_BEGIN_SAFE_SCOPE
 		{
 			while (argc && !ended_state)
 			{
@@ -100,16 +123,13 @@ struct CLIParser
 
 			return true;
 		}
-#ifndef SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
-		catch (...)
-		{
+		SPVC_END_SAFE_SCOPE({
 			if (cbs.error_handler)
 			{
 				cbs.error_handler();
 			}
 			return false;
-		}
-#endif
+		})
 	}
 
 	void end()
@@ -1541,18 +1561,13 @@ static int main_inner(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-#ifdef SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
-	return main_inner(argc, argv);
-#else
 	// Make sure we catch the exception or it just disappears into the aether on Windows.
-	try
+	SPVC_BEGIN_SAFE_SCOPE
 	{
 		return main_inner(argc, argv);
 	}
-	catch (const std::exception &e)
-	{
-		fprintf(stderr, "SPIRV-Cross threw an exception: %s\n", e.what());
+	SPVC_END_SAFE_SCOPE({
+		fprintf(stderr, "SPIRV-Cross threw an exception: %s\n", err_msg);
 		return EXIT_FAILURE;
-	}
-#endif
+	})
 }

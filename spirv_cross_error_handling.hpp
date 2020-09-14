@@ -21,7 +21,11 @@
 #include <stdlib.h>
 #include <string>
 #ifndef SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
+#ifdef SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP
+#include <csetjmp>
+#else
 #include <stdexcept>
+#endif
 #endif
 
 #ifdef SPIRV_CROSS_NAMESPACE_OVERRIDE
@@ -51,6 +55,37 @@ report_and_abort(const std::string &msg)
 }
 
 #define SPIRV_CROSS_THROW(x) report_and_abort(x)
+#elif defined(SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP)
+struct CompileErrorContext
+{
+	std::jmp_buf jmp_ctx = {};
+	std::string error_msg;
+};
+
+bool push_error_context(CompileErrorContext *context, int setjmp_return_code);
+void pop_error_context();
+
+// This function uses setjmp with jmp_ctx of the provided context, it returns true initially and might
+// return false if there is an unwinding due to error thrown via SPIRV_CROSS_THROW.
+// pop_error_context() must be called when the code that calls trap_error() is out of scope.
+#define trap_error(context) push_error_context(context, (context) ? setjmp((context)->jmp_ctx) : 0)
+
+struct AutoEndScopedCompileErrorContext
+{
+	~AutoEndScopedCompileErrorContext()
+	{
+		pop_error_context();
+	}
+};
+
+#if !defined(_MSC_VER) || defined(__clang__)
+[[noreturn]]
+#elif defined(_MSC_VER)
+__declspec(noreturn)
+#endif
+void unwind_or_abort(const std::string &msg);
+
+#define SPIRV_CROSS_THROW(x) unwind_or_abort(x)
 #else
 class CompilerError : public std::runtime_error
 {

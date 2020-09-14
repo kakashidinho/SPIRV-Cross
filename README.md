@@ -46,7 +46,9 @@ SPIRV-Cross is only useful as a library here. Use the CMake build to link SPIRV-
 
 ### C++ exceptions
 
-The make and CMake build flavors offer the option to treat exceptions as assertions. To disable exceptions for make just append `SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS=1` to the command line. For CMake append `-DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS=ON`. By default exceptions are enabled.
+The make and CMake build flavors offer the option to treat exceptions as assertions. To disable exceptions for make just append `SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS=1` 
+or `SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP=1` to the command line. For CMake append `-DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS=ON` or `-DSPIRV_CROSS_EXCEPTIONS_TO_LONGJMP=ON`.
+By default exceptions are enabled.
 
 ### Static, shared and CLI
 

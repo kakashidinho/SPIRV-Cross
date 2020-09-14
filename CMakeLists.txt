@@ -26,6 +26,7 @@ enable_testing()
 include(GNUInstallDirs)
 
 option(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS "Instead of throwing exceptions assert" OFF)
+option(SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP "Instead of throwing exceptions use longjmp" OFF)
 option(SPIRV_CROSS_SHARED "Build the C API as a single shared library." OFF)
 option(SPIRV_CROSS_STATIC "Build the C and C++ API as static libraries." ON)
 option(SPIRV_CROSS_CLI "Build the CLI binary. Requires SPIRV_CROSS_STATIC." ON)
@@ -88,6 +89,11 @@ if (SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
 	if (NOT MSVC)
 		set(spirv-compiler-options ${spirv-compiler-options} -fno-exceptions)
 	endif()
+elseif (SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP)
+	set(spirv-compiler-defines ${spirv-compiler-defines} SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP)
+	if (NOT MSVC)
+		set(spirv-compiler-options ${spirv-compiler-options} -fno-exceptions)
+	endif()
 endif()
 
 if (SPIRV_CROSS_FORCE_STL_TYPES)
@@ -109,7 +115,7 @@ if (CMAKE_COMPILER_IS_GNUCXX OR ((${CMAKE_CXX_COMPILER_ID} MATCHES "Clang") AND 
 		set(spirv-compiler-options ${spirv-compiler-options} -Werror)
 	endif()
 
-	if (SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
+	if (SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS OR SPIRV_CROSS_EXCEPTIONS_TO_LONGJMP)
 		set(spirv-compiler-options ${spirv-compiler-options} -fno-exceptions)
 	endif()
 
@@ -194,6 +200,7 @@ set(spirv-cross-core-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_common.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross_containers.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross_error_handling.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross_error_handling.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross.cpp
